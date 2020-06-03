@@ -1,10 +1,8 @@
-<apex:page showHeader="false">
+<apex:page showHeader="false" standardStylesheets="false">
    <html>
 
    <head>
-
       <link rel="stylesheet" href="http://maxcdn.bootstrapcdn.com/bootstrap/3.3.6/css/bootstrap.min.css" />
-
 
       <script src="https://manager.epbx.com.br/Service/scripts/jquery-3.1.0.min.js"></script>
       <script src="https://manager.epbx.com.br/Service/scripts/jquery.signalR.min.js"></script>
@@ -84,29 +82,60 @@
             });
          }
 
+
+
+         /* Discar */
+
+
+         var adapter;
+         var events;
+         var windowHandler;
+
+         var chamadaAtual = null;
+         var intervaloOptions = {};
+         var intervaloAtual = {};
+
+         /* Controle de Tela */
+         var statusText;
+         var panelLogin;
+         var panelRamal
+
          var callbackPopUp = function (response) {
             if (response.result) {
                console.log('API method call executed successfully! returnValue:', response.returnValue);
             } else {
                console.error('Something went wrong! Errors:', response.errors);
             }
-         };
-
-         /* Discar */
+         }
 
          var onclickToDial = function (response) {
 
-            var numero = response.result;
+            var obj  = JSON.parse(response.result);
+
+            var numero = obj.numero;
 
             discar(numero);
-         };
+         }
 
-
-         function enableClickToDial() {
+         var enableClickToDial = function () {
             sforce.interaction.cti.enableClickToDial();
             sforce.interaction.cti.onClickToDial(onclickToDial);
          }
 
+         var showMessage = function (mensagem) {
+            statusText.text(mensagem)
+         }
+
+         var loginError = function (errMessage) {
+            showMessage("Erro ao logar ramal");
+         }
+
+         var mostrarIntervaloStatus = function (ramalStatusDetalheId) {
+            var intervalo = intervaloOptions[ramalStatusDetalheId];
+            if (intervalo) {
+               $("#intervaloStatus").text(intervalo.Descricao);
+            }
+         }
 
          var discar = function (numero) {
             if (!numero) {
@@ -120,21 +149,40 @@
 
             adapter.server.discar(numero, tipoDiscagem)
                .then(function () {
+                  btnDesligar.show();
+                  btnDiscar.hide()
                })
                .fail(function (err) {
                   showMessage("Erro ao efetuar a discagem");
+                  btnDesligar.hide();
+                  btnDiscar.show()
                });
          }
 
+         var updateIntervalorOptions = function () {
+            var select = $("#intervaloSelect"),
+               value, key, option;
 
-         var adapter;
-         var events;
-         var windowHandler;
-         var statusText;
+            select.find("option").remove();
+
+            for (key in intervaloOptions) {
+               value = intervaloOptions[key];
+               if (intervaloAtual.RamalStatusDetalheId != value) {
+                  option = $("<option></option>")
+                     .attr("value", key)
+                     .text(key + " - " + value.Descricao);
+                  select.append(option);
+               }
+            }
+
+            /* var intervalo = intervaloOptions[intervaloAtual.RamalStatusDetalheId];
+             if (intervalo) {
+                $("#intervaloStatus").text(intervalo.Descricao);
+             }
+             */
 
 
-         function showMessage(mensagem) {
-            statusText.text(mensagem)
+            select.val(intervaloAtual.RamalStatusDetalheId);
          }
 
 
@@ -146,57 +194,73 @@
             events = $.epbxManagerClient.events;
             windowHandler = $(window);
 
-            var chamadaAtual = null;
-            var intervaloOptions = {};
-            var intervaloAtual = {};
+            chamadaAtual = null;
+            intervaloOptions = {};
+            intervaloAtual = {};
 
-            var panelLogin = $("#panelLogin");
-            var panelRamal = $("#panelRamal");
+            panelLogin = $("#panelLogin");
+            panelRamal = $("#panelRamal");
             statusText = $("#statusText");
+            btnDeslogar = $("#btnDeslogar");
+            btnDiscar = $("#btnDiscar");
+            btnDesligar = $("#btnDesligar");
 
             panelRamal.hide();
+            btnDeslogar.hide();
+            btnDesligar.hide();
+            btnDiscar.show()
 
             windowHandler.on(events.onLogado, function (event, ramal) {
                panelLogin.hide();
                panelRamal.show();
                showMessage("Ramal logado");
                enableClickToDial();
+               btnDeslogar.show()
             });
 
             windowHandler.on(events.onDeslogado, function (event, ramal) {
                panelLogin.show();
                panelRamal.hide();
+               btnDeslogar.hide();
+               btnDesligar.hide();
+               btnDiscar.show()
                showMessage("Ramal Deslogado");
             });
 
             windowHandler.on(events.onDesliga, function (event, ramal) {
                showMessage("Ligação desligada");
+               btnDesligar.hide();
+               btnDiscar.show()
             });
 
             windowHandler.on(events.onLogadoErro, function (event, ramal, ex) {
                panelLogin.show();
                panelRamal.hide();
+               btnDeslogar.hide()
                showMessage("Ramal Deslogado");
             });
 
             windowHandler.on(events.onConexaoErro, function (event, ramal, ex) {
                panelLogin.show();
                panelRamal.hide();
+               btnDeslogar.hide()
                showMessage("Ramal Deslogado");
             });
 
             windowHandler.on(events.onSignalrDisconnected, function () {
                panelLogin.show();
                panelRamal.hide();
+               btnDeslogar.hide()
             });
 
             windowHandler.on(events.onSetIntervaloRamal, function (event, ramal, intervalo) {
 
+               //Intervalo Pendente
+               if (intervalo.Status == 1) return;
+
                intervaloAtual = {
                   RamalStatusDetalheId: intervalo.RamalStatusDetalheId
                }
-
-               mostrarIntervaloStatus(intervalo.RamalStatusDetalheId);
 
                updateIntervalorOptions();
             });
@@ -208,10 +272,6 @@
                   Produtivo: infoIntervalo.Produtivo
                };
 
-               if (intervaloAtual.RamalStatusDetalheId === infoIntervalo.RamalStatusDetalheId) {
-                  mostrarIntervaloStatus(infoIntervalo.RamalStatusDetalheId);
-               }
-
                updateIntervalorOptions();
             });
 
@@ -222,6 +282,9 @@
             windowHandler.on(events.onAtendido, function (event, ramal, chamada) {
                console.log(chamada);
 
+               btnDesligar.show();
+               btnDiscar.hide();
+
                showMessage("Ligação atendida " + chamada.Telefone);
 
                var identificador = chamada.CodigoCampanha ? chamada.CodigoCliente : chamada.Telefone;
@@ -229,36 +292,7 @@
                sforce.interaction.searchAndScreenPop(identificador, '', 'inbound', callbackPopUp);
             });
 
-
             /* Eventos de Tela */
-            function loginError(errMessage) {
-               showMessage("Erro ao logar ramal");
-            }
-
-            function mostrarIntervaloStatus(ramalStatusDetalheId) {
-               var intervalo = intervaloOptions[ramalStatusDetalheId];
-               if (intervalo) {
-                  $("#intervaloStatus").text(intervalo.Descricao);
-               }
-            }
-
-            function updateIntervalorOptions() {
-               var select = $("#intervaloSelect"),
-                  value, key, option;
-
-               select.find("option").remove();
-
-               for (key in intervaloOptions) {
-                  if (key != intervaloAtual.RamalStatusDetalheId) {
-                     value = intervaloOptions[key];
-                     option = $("<option></option>")
-                        .attr("value", key)
-                        .text(key + " - " + value.Descricao);
-                     select.append(option);
-                  }
-               }
-            }
-
 
             $("#btnLoggin").click(function () {
 
@@ -285,11 +319,11 @@
                return false;
             });
 
-
             $("#btnDeslogar").click(function () {
                adapter.server.terminar().then(function () {
                   panelLogin.show();
                   panelRamal.hide();
+                  btnDeslogar.hide();
                   showMessage("Ramal Deslogado");
                }).fail(function () {
                   showMessage("Erro ao deslogar o ramal");
@@ -306,6 +340,27 @@
                return false;
             });
 
+            $("#btnDesligar").click(function () {
+
+               adapter.server.desligar().fail(function () {
+                  showMessage("Erro ao desligar ligação");
+               });
+
+               return false;
+            });
+
+            $("#intervaloSelect").change(function () {
+
+               let intervalo = $(this).val();
+
+               console.log("intervalo " + intervalo);
+
+               adapter.server.alterarIntervaloTipo(intervalo).fail(function () {
+                  showMessage("Erro ao alterar intervalo");
+               });
+            })
+
+
          });
 
       </script>
@@ -315,12 +370,14 @@
 
       <div class="panel panel-default">
          <div class="panel-heading">
-            <h3 class="panel-title">EpbxManager</h3>
+            <img src="http://manager.epbx.com.br/assets/img/logo.png" height="30" />
+            <button style="float: right;" type="Button" id="btnDeslogar" class="btn btn-danger btn-sm">Deslogar</button>
          </div>
          <div class="panel-body">
             <div class="container-fluid">
                <div class="row">
                   <div style="text-align: center;"><span id="statusText" style="font-size: 14px;"></span></div>
+
                </div>
 
                <div id="panelLogin" class="row">
@@ -339,9 +396,6 @@
 
                <div id="panelRamal" class="row">
                   <form id="formLogado">
-                     <div class="form-group">
-                        <button type="Button" id="btnDeslogar" class="btn btn-danger btn-block">Deslogar</button>
-                     </div>
 
                      <div class="form-group">
                         <label for="intervaloSelect">Intervalo</label>
@@ -349,11 +403,6 @@
                            <option value="-1">Selecione um intervalo</option>
                         </select>
                      </div>
-                     <div class="form-group">
-                        <input type="button" value="Alterar" id="btnAlterarIntervalo"
-                           class="btn btn-success btn-block" />
-                     </div>
-
                   </form>
                   <form id="formDiscagem">
                      <div class="form-group">
@@ -362,6 +411,7 @@
                      </div>
 
                      <button type="Button" id="btnDiscar" class="btn btn-success btn-block">Discar</button>
+                     <button type="Button" id="btnDesligar" class="btn btn-danger btn-block">Desligar</button>
                   </form>
                </div>
             </div>
