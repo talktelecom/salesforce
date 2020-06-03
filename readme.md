@@ -38,4 +38,4 @@
 ![alt text](https://github.com/talktelecom/salesforce/blob/master/images/App7.jpg)
 
 ### Teste a integração
-![alt text](https://github.com/talktelecom/salesforce/blob/master/images/App8.JPG)
+![alt text](https://github.com/talktelecom/salesforce/blob/master/images/App8.JPG) 

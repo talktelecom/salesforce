@@ -86,7 +86,6 @@
 
          var callbackPopUp = function (response) {
             if (response.result) {
-              // sforce.interaction.screenPop('/001x0000003DGQR', true, callbackPopUp);
                console.log('API method call executed successfully! returnValue:', response.returnValue);
             } else {
                console.error('Something went wrong! Errors:', response.errors);
@@ -115,6 +114,8 @@
                return false;
             }
 
+            showMessage("Discando " + numero);
+
             var tipoDiscagem = numero.length > 4 ? 1 : 2;
 
             adapter.server.discar(numero, tipoDiscagem)
@@ -129,6 +130,13 @@
          var adapter;
          var events;
          var windowHandler;
+         var statusText;
+
+
+         function showMessage(mensagem) {
+            statusText.text(mensagem)
+         }
+
 
          /* Eventos Telefonia */
          $(function () {
@@ -144,7 +152,7 @@
 
             var panelLogin = $("#panelLogin");
             var panelRamal = $("#panelRamal");
-            var statusText = $("#statusText");
+            statusText = $("#statusText");
 
             panelRamal.hide();
 
@@ -187,6 +195,7 @@
                intervaloAtual = {
                   RamalStatusDetalheId: intervalo.RamalStatusDetalheId
                }
+
                mostrarIntervaloStatus(intervalo.RamalStatusDetalheId);
 
                updateIntervalorOptions();
@@ -199,7 +208,6 @@
                   Produtivo: infoIntervalo.Produtivo
                };
 
-
                if (intervaloAtual.RamalStatusDetalheId === infoIntervalo.RamalStatusDetalheId) {
                   mostrarIntervaloStatus(infoIntervalo.RamalStatusDetalheId);
                }
@@ -210,6 +218,7 @@
             windowHandler.on(events.onChamada, function (event, ramal, chamada) {
                showMessage("Evento onChamada");
             });
+
             windowHandler.on(events.onAtendido, function (event, ramal, chamada) {
                console.log(chamada);
 
@@ -217,16 +226,9 @@
 
                var identificador = chamada.CodigoCampanha ? chamada.CodigoCliente : chamada.Telefone;
 
-
                sforce.interaction.searchAndScreenPop(identificador, '', 'inbound', callbackPopUp);
-               //sforce.interaction.searchAndScreenPop({ searchParams: identificador, queryParams: '', callType: sforce.opencti.CALL_TYPE.INBOUND, deferred: false, callback: callbackPopUp });
             });
 
-
-            function showMessage(mensagem) {
-               statusText.text(mensagem)
-
-            }
 
             /* Eventos de Tela */
             function loginError(errMessage) {
@@ -317,8 +319,6 @@
          </div>
          <div class="panel-body">
             <div class="container-fluid">
-
-
                <div class="row">
                   <div style="text-align: center;"><span id="statusText" style="font-size: 14px;"></span></div>
                </div>
@@ -333,14 +333,12 @@
                         <label for="passwordInput">Senha</label>
                         <input type="password" id="txtSenha" class="form-control" value="" />
                      </div>
-
                      <button type="Button" id="btnLoggin" class="btn btn-success btn-block">Logar</button>
                   </form>
                </div>
 
                <div id="panelRamal" class="row">
                   <form id="formLogado">
-
                      <div class="form-group">
                         <button type="Button" id="btnDeslogar" class="btn btn-danger btn-block">Deslogar</button>
                      </div>
@@ -365,18 +363,10 @@
 
                      <button type="Button" id="btnDiscar" class="btn btn-success btn-block">Discar</button>
                   </form>
-
-
-
                </div>
-
-
             </div>
          </div>
       </div>
-
-
-
    </body>
 
    </html>
