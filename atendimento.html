@@ -100,8 +100,19 @@
          var panelLogin;
          var panelRamal
 
+         var callbackScreenPop = function (response) {
+            console.log(response);
+         }
+
          var callbackPopUp = function (response) {
             if (response.result) {
+
+               var obj = JSON.parse(response.result);
+
+               var cliente = Object.keys(obj)[0];
+
+               sforce.interaction.screenPop(cliente, true, callbackScreenPop);
+
                console.log('API method call executed successfully! returnValue:', response.returnValue);
             } else {
                console.error('Something went wrong! Errors:', response.errors);
@@ -110,9 +121,9 @@
 
          var onclickToDial = function (response) {
 
-            var obj  = JSON.parse(response.result);
+            var obj = JSON.parse(response.result);
 
-            var numero = obj.numero;
+            var numero = obj.number;
 
             discar(numero);
          }
@@ -135,6 +146,18 @@
             if (intervalo) {
                $("#intervaloStatus").text(intervalo.Descricao);
             }
+         }
+
+
+         var deslogar = function () {
+            adapter.server.terminar().then(function () {
+               panelLogin.show();
+               panelRamal.hide();
+               btnDeslogar.hide();
+               showMessage("Ramal Deslogado");
+            }).fail(function () {
+               showMessage("Erro ao deslogar o ramal");
+            });
          }
 
          var discar = function (numero) {
@@ -320,14 +343,7 @@
             });
 
             $("#btnDeslogar").click(function () {
-               adapter.server.terminar().then(function () {
-                  panelLogin.show();
-                  panelRamal.hide();
-                  btnDeslogar.hide();
-                  showMessage("Ramal Deslogado");
-               }).fail(function () {
-                  showMessage("Erro ao deslogar o ramal");
-               });
+               deslogar()
                return false;
             });
 
