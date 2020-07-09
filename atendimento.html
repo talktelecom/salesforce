@@ -2,15 +2,23 @@
    <html>
 
    <head>
-      <link rel="stylesheet" href="http://maxcdn.bootstrapcdn.com/bootstrap/3.3.6/css/bootstrap.min.css" />
+      <link rel="stylesheet" href="https://epbxmanager.neobpo.com.br/Salesforce/bootstrap/css/bootstrap.min.css" />
 
-      <script src="https://manager.epbx.com.br/Service/scripts/jquery-3.1.0.min.js"></script>
-      <script src="https://manager.epbx.com.br/Service/scripts/jquery.signalR.min.js"></script>
-      <script src="https://manager.epbx.com.br/Service/signalr/hubs"></script>
-      <script src="https://manager.epbx.com.br/salesforce/epbxManagerConfig.js"></script>
-      <script src="https://manager.epbx.com.br/salesforce/epbxManagerConnection.js"></script>
+      <link rel="stylesheet" href="https://epbxmanager.neobpo.com.br/Salesforce/fontawesome/css/all.min.css" />
 
-      <script type="text/javascript" src="https://c.na172.visual.force.com/support/api/48.0/interaction.js"></script>
+      
+      <script src="https://epbxmanager.neobpo.com.br/Service/scripts/jquery-3.1.0.min.js"></script>
+      <script src="https://epbxmanager.neobpo.com.br/Service/scripts/jquery.signalR.min.js"></script>
+      <script src="https://epbxmanager.neobpo.com.br/Service/signalr/hubs"></script>
+      <script src="https://epbxmanager.neobpo.com.br/Salesforce/epbxManagerConfig.js"></script>
+      <script src="https://epbxmanager.neobpo.com.br/Salesforce/epbxManagerConnection.js"></script>
+
+
+      <script src="https://epbxmanager.neobpo.com.br/Salesforce/fontawesome/js/all.min.js"></script>
+     
+
+      <script type="text/javascript"
+         src="https://renault-br--brstaging.my.salesforce.com/support/api/48.0/interaction.js"></script>
 
       <script type="text/javascript">
          // Callback of API method: setSoftphonePanelHeight
@@ -94,6 +102,7 @@
          var chamadaAtual = null;
          var intervaloOptions = {};
          var intervaloAtual = {};
+         var ultimoGlobalId = '';
 
          /* Controle de Tela */
          var statusText;
@@ -109,9 +118,8 @@
 
                var obj = JSON.parse(response.result);
 
-               var cliente = Object.keys(obj)[0];
-
-               sforce.interaction.screenPop(cliente, true, callbackScreenPop);
+               //var cliente = Object.keys(obj)[0];
+               //sforce.interaction.screenPop(cliente, true, callbackScreenPop);
 
                console.log('API method call executed successfully! returnValue:', response.returnValue);
             } else {
@@ -154,6 +162,7 @@
                panelLogin.show();
                panelRamal.hide();
                btnDeslogar.hide();
+               panelDebug.hide();     
                showMessage("Ramal Deslogado");
             }).fail(function () {
                showMessage("Erro ao deslogar o ramal");
@@ -208,6 +217,21 @@
             select.val(intervaloAtual.RamalStatusDetalheId);
          }
 
+         var consultaClientePorGlobalId = function (globalId) {
+
+            var url = 'https://epbxmanager.neobpo.com.br/Renault/Api/Customer/GetByGlobalId?globalId=' + globalId;
+
+            return $.get(url);
+         }
+
+         var abrirFichaCliente = function (globalId) {
+            consultaClientePorGlobalId(globalId).then(function (response) {
+               var codigoCliente = response.ObjectID
+               //sforce.interaction.searchAndScreenPop(identificador, '', 'inbound', callbackPopUp);
+               sforce.interaction.screenPop(codigoCliente, true, callbackScreenPop);
+            });
+         }
+
 
          /* Eventos Telefonia */
          $(function () {
@@ -220,25 +244,28 @@
             chamadaAtual = null;
             intervaloOptions = {};
             intervaloAtual = {};
-
+            isAdmin = false;
+        
             panelLogin = $("#panelLogin");
             panelRamal = $("#panelRamal");
             statusText = $("#statusText");
             btnDeslogar = $("#btnDeslogar");
             btnDiscar = $("#btnDiscar");
             btnDesligar = $("#btnDesligar");
-
+            btnAbrirFicha = $("#btnAbrirFicha");
+         
             panelRamal.hide();
             btnDeslogar.hide();
             btnDesligar.hide();
             btnDiscar.show()
+            btnAbrirFicha.hide();
 
             windowHandler.on(events.onLogado, function (event, ramal) {
                panelLogin.hide();
                panelRamal.show();
                showMessage("Ramal logado");
                enableClickToDial();
-               btnDeslogar.show()
+               btnDeslogar.show()            
             });
 
             windowHandler.on(events.onDeslogado, function (event, ramal) {
@@ -247,6 +274,7 @@
                btnDeslogar.hide();
                btnDesligar.hide();
                btnDiscar.show()
+               btnAbrirFicha.hide();
                showMessage("Ramal Deslogado");
             });
 
@@ -260,6 +288,7 @@
                panelLogin.show();
                panelRamal.hide();
                btnDeslogar.hide()
+               btnAbrirFicha.hide();
                showMessage("Ramal Deslogado");
             });
 
@@ -267,6 +296,7 @@
                panelLogin.show();
                panelRamal.hide();
                btnDeslogar.hide()
+               btnAbrirFicha.hide();
                showMessage("Ramal Deslogado");
             });
 
@@ -307,20 +337,32 @@
 
                btnDesligar.show();
                btnDiscar.hide();
+               btnAbrirFicha.show();     
 
                showMessage("Ligação atendida " + chamada.Telefone);
 
                var identificador = chamada.CodigoCampanha ? chamada.CodigoCliente : chamada.Telefone;
 
-               sforce.interaction.searchAndScreenPop(identificador, '', 'inbound', callbackPopUp);
+               if(!ultimoGlobalId){
+                  ultimoGlobalId = chamada.GlobalId;
+               }
+
+               abrirFichaCliente(chamada.GlobalId);
+            });
+
+            windowHandler.on(events.onChamadaGlobalId, function (event, ramal, chamada, globalId) {
+               ultimoGlobalId = globalId;
             });
 
             /* Eventos de Tela */
+            $("#btnAbrirFicha").click(function () {
+               abrirFichaCliente(ultimoGlobalId);
+            })
 
             $("#btnLoggin").click(function () {
 
                var tipoLogon = adapter.TipoLogon.RamalVirtual;
-               var idPaOrIpOrRamal = "1009";
+               var idPaOrIpOrRamal = "0";
                var usuario = $("#txtLogin").val();
                var senha = $("#txtSenha").val();
 
@@ -332,6 +374,10 @@
                if (!senha) {
                   showMessage("Informe a senha");
                   return;
+               }
+
+               if (usuario == "admin") {
+                  isAdmin = true;                
                }
 
                adapter.login(usuario, senha, idPaOrIpOrRamal, tipoLogon)
@@ -375,8 +421,6 @@
                   showMessage("Erro ao alterar intervalo");
                });
             })
-
-
          });
 
       </script>
@@ -386,8 +430,9 @@
 
       <div class="panel panel-default">
          <div class="panel-heading">
-            <img src="http://manager.epbx.com.br/assets/img/logo.png" height="30" />
-            <button style="float: right;" type="Button" id="btnDeslogar" class="btn btn-danger btn-sm">Deslogar</button>
+            <img src="https://epbxmanager.neobpo.com.br/assets/img/logo.png" height="30" />
+            <button style="float: right; margin:5px;" type="Button" id="btnDeslogar" class="btn btn-danger btn-sm"><i class="fas fa-user"></i> </button>
+            <button style="float: right; margin:5px;" type="Button" id="btnAbrirFicha" class="btn btn-info btn-sm"><i class="fas fa-address-card"></i> </button>
          </div>
          <div class="panel-body">
             <div class="container-fluid">
