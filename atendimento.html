@@ -161,8 +161,7 @@
             adapter.server.terminar().then(function () {
                panelLogin.show();
                panelRamal.hide();
-               btnDeslogar.hide();
-               panelDebug.hide();     
+               btnDeslogar.hide(); 
                showMessage("Ramal Deslogado");
             }).fail(function () {
                showMessage("Erro ao deslogar o ramal");
