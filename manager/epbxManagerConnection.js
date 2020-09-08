@@ -64,7 +64,6 @@
     epbxManagerClient.ipPaOrIpOrRamal = ipPaOrIpOrRamal; // salvar o ip para passar ao metodo iniciar do atendimento
     epbxManagerClient.tipoLogon = tipoLogon;
 
-
     return $.ajax({
       url: urlToken,
       type: "POST",
@@ -92,9 +91,7 @@
   // 3º após conectarmos no signalr, podemos iniciar o atendimento, para podemos realizar e receber chamadas
   epbxManagerClient.iniciarAtendimento = function iniciarAtendimento() {
     // metodo iniciar do atendimento, passando o ip onde o softphone está logado
-
     var ramal = epbxManagerClient.ramalInfo.Numero;
-
     return epbxManagerClient.server.iniciar(ramal, epbxManagerClient.tipoLogon);
   }
 

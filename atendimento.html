@@ -3,19 +3,15 @@
 
    <head>
       <link rel="stylesheet" href="https://epbxmanager.neobpo.com.br/Salesforce/bootstrap/css/bootstrap.min.css" />
-
       <link rel="stylesheet" href="https://epbxmanager.neobpo.com.br/Salesforce/fontawesome/css/all.min.css" />
 
-      
       <script src="https://epbxmanager.neobpo.com.br/Service/scripts/jquery-3.1.0.min.js"></script>
       <script src="https://epbxmanager.neobpo.com.br/Service/scripts/jquery.signalR.min.js"></script>
       <script src="https://epbxmanager.neobpo.com.br/Service/signalr/hubs"></script>
       <script src="https://epbxmanager.neobpo.com.br/Salesforce/epbxManagerConfig.js"></script>
       <script src="https://epbxmanager.neobpo.com.br/Salesforce/epbxManagerConnection.js"></script>
 
-
       <script src="https://epbxmanager.neobpo.com.br/Salesforce/fontawesome/js/all.min.js"></script>
-     
 
       <script type="text/javascript"
          src="https://renault-br--brstaging.my.salesforce.com/support/api/48.0/interaction.js"></script>
@@ -90,11 +86,7 @@
             });
          }
 
-
-
          /* Discar */
-
-
          var adapter;
          var events;
          var windowHandler;
@@ -103,6 +95,8 @@
          var intervaloOptions = {};
          var intervaloAtual = {};
          var ultimoGlobalId = '';
+
+         var isLigacaoExterna = false;
 
          /* Controle de Tela */
          var statusText;
@@ -115,12 +109,9 @@
 
          var callbackPopUp = function (response) {
             if (response.result) {
-
                var obj = JSON.parse(response.result);
-
                //var cliente = Object.keys(obj)[0];
                //sforce.interaction.screenPop(cliente, true, callbackScreenPop);
-
                console.log('API method call executed successfully! returnValue:', response.returnValue);
             } else {
                console.error('Something went wrong! Errors:', response.errors);
@@ -128,11 +119,8 @@
          }
 
          var onclickToDial = function (response) {
-
             var obj = JSON.parse(response.result);
-
             var numero = obj.number;
-
             discar(numero);
          }
 
@@ -156,12 +144,11 @@
             }
          }
 
-
          var deslogar = function () {
             adapter.server.terminar().then(function () {
                panelLogin.show();
                panelRamal.hide();
-               btnDeslogar.hide(); 
+               btnDeslogar.hide();
                showMessage("Ramal Deslogado");
             }).fail(function () {
                showMessage("Erro ao deslogar o ramal");
@@ -176,18 +163,74 @@
 
             showMessage("Discando " + numero);
 
-            var tipoDiscagem = numero.length > 4 ? 1 : 2;
+            var tipoDiscagem = numero.length > 6 ? 1 : 2;
 
             adapter.server.discar(numero, tipoDiscagem)
                .then(function () {
                   btnDesligar.show();
                   btnDiscar.hide()
+                  groupTelefone.hide();
                })
                .fail(function (err) {
                   showMessage("Erro ao efetuar a discagem");
                   btnDesligar.hide();
                   btnDiscar.show()
+                  groupTelefone.show();
                });
+         }
+
+
+         /**/
+         function consultar(numero) {
+            if (!numero) {
+               showMessage("Número inválido");
+               return false;
+            }
+
+            btnConsultar.hide();
+            btnLiberarConsulta.show();
+
+            var tipoDiscagem = numero.length > 6 ? 1 : 2;
+
+            adapter.server
+               .consultar(numero, tipoDiscagem)
+               .then(() => {
+                  // Chamada atual ficou em espera
+                  showMessage(`Consultando ${numero}`);
+               })
+               .fail(err => {
+                  showMessage(err.message);
+                  btnConsultar.show();
+                  btnLiberarConsulta.hide();
+               });
+
+            return false;
+         }
+
+         function liberarConsulta() {
+            adapter.server
+               .liberarConsulta()
+               .then(() => {
+                  btnLiberarConsulta.hide();
+                  btnConsultar.show();
+                  showMessage("Consulta liberada");
+               })
+               .fail(() => {
+                  showMessage("Erro ao liberar consulta");
+               });
+         }
+
+         function transferir(numero) {
+            if (!numero) {
+               showMessage("Número inválido");
+               return false;
+            }
+
+            var tipoDiscagem = numero.length > 6 ? 1 : 2;
+            // Externo = 1 | Interno = 2
+            adapter.server.transferir(numero, tipoDiscagem);
+            // Esse método não retorna fail() quando não consegue fazer a transferência
+            // e não retorna nenhum objeto no then, por isso não tem como ser tratado aqui
          }
 
          var updateIntervalorOptions = function () {
@@ -212,14 +255,11 @@
              }
              */
 
-
             select.val(intervaloAtual.RamalStatusDetalheId);
          }
 
          var consultaClientePorGlobalId = function (globalId) {
-
-            var url = 'https://epbxmanager.neobpo.com.br/Renault/Api/Customer/GetByGlobalId?globalId=' + globalId;
-
+            var url = 'http://manager.epbx.com.br/Renault/Api/Customer/GetByGlobalId?globalId=' + globalId;
             return $.get(url);
          }
 
@@ -230,7 +270,6 @@
                sforce.interaction.screenPop(codigoCliente, true, callbackScreenPop);
             });
          }
-
 
          /* Eventos Telefonia */
          $(function () {
@@ -244,7 +283,7 @@
             intervaloOptions = {};
             intervaloAtual = {};
             isAdmin = false;
-        
+
             panelLogin = $("#panelLogin");
             panelRamal = $("#panelRamal");
             statusText = $("#statusText");
@@ -252,11 +291,20 @@
             btnDiscar = $("#btnDiscar");
             btnDesligar = $("#btnDesligar");
             btnAbrirFicha = $("#btnAbrirFicha");
-         
+            groupTelefone = $("#group-telefone");
+            formTransferencia = $("#formTransferencia");
+            formConsultar = $("#formConsultar");
+            btnTransferir = $("#btnTransferir");
+            btnConsultar = $("#btnConsultar");
+            btnLiberarConsulta = $("#btnLiberarConsulta");
+
             panelRamal.hide();
             btnDeslogar.hide();
             btnDesligar.hide();
-            btnDiscar.show()
+            btnDiscar.show();
+            formTransferencia.hide();
+            formConsultar.hide();
+            btnLiberarConsulta.hide();
             btnAbrirFicha.hide();
 
             windowHandler.on(events.onLogado, function (event, ramal) {
@@ -264,7 +312,7 @@
                panelRamal.show();
                showMessage("Ramal logado");
                enableClickToDial();
-               btnDeslogar.show()            
+               btnDeslogar.show()
             });
 
             windowHandler.on(events.onDeslogado, function (event, ramal) {
@@ -272,21 +320,29 @@
                panelRamal.hide();
                btnDeslogar.hide();
                btnDesligar.hide();
-               btnDiscar.show()
+               formTransferencia.hide();
+               btnLiberarConsulta.hide();
+               formConsultar.hide();
+               btnDiscar.show();
+               groupTelefone.show();
                btnAbrirFicha.hide();
                showMessage("Ramal Deslogado");
             });
 
             windowHandler.on(events.onDesliga, function (event, ramal) {
-               showMessage("Ligação desligada");
+               showMessage("Ligação encerrada");
                btnDesligar.hide();
-               btnDiscar.show()
+               formTransferencia.hide();
+               btnLiberarConsulta.hide();
+               formConsultar.hide();
+               btnDiscar.show();
+               groupTelefone.show();
             });
 
             windowHandler.on(events.onLogadoErro, function (event, ramal, ex) {
                panelLogin.show();
                panelRamal.hide();
-               btnDeslogar.hide()
+               btnDeslogar.hide();
                btnAbrirFicha.hide();
                showMessage("Ramal Deslogado");
             });
@@ -294,7 +350,7 @@
             windowHandler.on(events.onConexaoErro, function (event, ramal, ex) {
                panelLogin.show();
                panelRamal.hide();
-               btnDeslogar.hide()
+               btnDeslogar.hide();
                btnAbrirFicha.hide();
                showMessage("Ramal Deslogado");
             });
@@ -302,11 +358,10 @@
             windowHandler.on(events.onSignalrDisconnected, function () {
                panelLogin.show();
                panelRamal.hide();
-               btnDeslogar.hide()
+               btnDeslogar.hide();
             });
 
             windowHandler.on(events.onSetIntervaloRamal, function (event, ramal, intervalo) {
-
                //Intervalo Pendente
                if (intervalo.Status == 1) return;
 
@@ -318,7 +373,6 @@
             });
 
             windowHandler.on(events.onInfoIntervaloRamal, function (event, ramal, infoIntervalo) {
-
                intervaloOptions[infoIntervalo.RamalStatusDetalheId] = {
                   Descricao: infoIntervalo.Descricao,
                   Produtivo: infoIntervalo.Produtivo
@@ -331,18 +385,27 @@
                showMessage("Evento onChamada");
             });
 
+            windowHandler.on(events.onChamadaTransferida, function (event, ramal, chamada) {
+               showMessage("Ligação transferida");
+            });
+
             windowHandler.on(events.onAtendido, function (event, ramal, chamada) {
                console.log(chamada);
 
                btnDesligar.show();
                btnDiscar.hide();
-               btnAbrirFicha.show();     
+               groupTelefone.hide();
+               btnAbrirFicha.show();
+               formTransferencia.show();
+               formConsultar.show();
+               btnConsultar.show();
+               btnLiberarConsulta.hide();
 
                showMessage("Ligação atendida " + chamada.Telefone);
 
                var identificador = chamada.CodigoCampanha ? chamada.CodigoCliente : chamada.Telefone;
 
-               if(!ultimoGlobalId){
+               if (!ultimoGlobalId) {
                   ultimoGlobalId = chamada.GlobalId;
                }
 
@@ -359,7 +422,6 @@
             })
 
             $("#btnLoggin").click(function () {
-
                var tipoLogon = adapter.TipoLogon.RamalVirtual;
                var idPaOrIpOrRamal = "0";
                var usuario = $("#txtLogin").val();
@@ -376,7 +438,7 @@
                }
 
                if (usuario == "admin") {
-                  isAdmin = true;                
+                  isAdmin = true;
                }
 
                adapter.login(usuario, senha, idPaOrIpOrRamal, tipoLogon)
@@ -393,16 +455,29 @@
             });
 
             $("#btnDiscar").click(function () {
-
                var numero = $("#txtNumeroDiscagem").val();
-
                discar(numero);
+               return false;
+            });
 
+            $("#btnTransferir").click(function () {
+               var numero = $("#txtNumeroConsultar").val();
+               transferir(numero);
+               return false;
+            });
+
+            $("#btnConsultar").click(function () {
+               var numero = $("#txtNumeroConsultar").val();
+               consultar(numero);
+               return false;
+            });
+
+            $("#btnLiberarConsulta").click(function () {
+               liberarConsulta();
                return false;
             });
 
             $("#btnDesligar").click(function () {
-
                adapter.server.desligar().fail(function () {
                   showMessage("Erro ao desligar ligação");
                });
@@ -411,7 +486,6 @@
             });
 
             $("#intervaloSelect").change(function () {
-
                let intervalo = $(this).val();
 
                console.log("intervalo " + intervalo);
@@ -419,6 +493,13 @@
                adapter.server.alterarIntervaloTipo(intervalo).fail(function () {
                   showMessage("Erro ao alterar intervalo");
                });
+            });
+
+            $('#txtNumeroConsultar').on('input', function() {
+               isLigacaoExterna = $(this).val().length > 6;
+
+               if (isLigacaoExterna) btnTransferir.prop("disabled", true);
+               else btnTransferir.prop("disabled", false);
             })
          });
 
@@ -429,9 +510,11 @@
 
       <div class="panel panel-default">
          <div class="panel-heading">
-            <img src="https://epbxmanager.neobpo.com.br/assets/img/logo.png" height="30" />
-            <button style="float: right; margin:5px;" type="Button" id="btnDeslogar" class="btn btn-danger btn-sm"><i class="fas fa-user"></i> </button>
-            <button style="float: right; margin:5px;" type="Button" id="btnAbrirFicha" class="btn btn-info btn-sm"><i class="fas fa-address-card"></i> </button>
+            <img src="http://manager.epbx.com.br/assets/img/logo.png" height="30" />
+            <button style="float: right; margin:5px;" type="Button" id="btnDeslogar" class="btn btn-danger btn-sm"><i
+                  class="fas fa-user"></i> </button>
+            <button style="float: right; margin:5px;" type="Button" id="btnAbrirFicha" class="btn btn-info btn-sm"><i
+                  class="fas fa-address-card"></i> </button>
          </div>
          <div class="panel-body">
             <div class="container-fluid">
@@ -441,38 +524,66 @@
                </div>
 
                <div id="panelLogin" class="row">
-                  <form id="formLogin">
-                     <div class="form-group">
-                        <label for="usernameInput">Usuário</label>
-                        <input type="text" id="txtLogin" class="form-control" value="" />
-                     </div>
-                     <div class="form-group">
-                        <label for="passwordInput">Senha</label>
-                        <input type="password" id="txtSenha" class="form-control" value="" />
-                     </div>
-                     <button type="Button" id="btnLoggin" class="btn btn-success btn-block">Logar</button>
-                  </form>
+                  <div class="col">
+                     <form id="formLogin" class="row">
+                        <div class="col">
+                           <div class="form-group">
+                              <label for="usernameInput">Usuário</label>
+                              <input type="text" id="txtLogin" class="form-control" value="" />
+                           </div>
+                           <div class="form-group">
+                              <label for="passwordInput">Senha</label>
+                              <input type="password" id="txtSenha" class="form-control" value="" />
+                           </div>
+                           <button type="Button" id="btnLoggin" class="btn btn-success btn-block">Logar</button>
+                        </div>
+                     </form>
+                  </div>
                </div>
 
                <div id="panelRamal" class="row">
-                  <form id="formLogado">
+                  <div class="col">
+                     <form id="formLogado" class="row">
+                        <div class="col">
+                           <div class="form-group">
+                              <label for="intervaloSelect">Intervalo</label>
+                              <select id="intervaloSelect" class="form-control">
+                                 <option value="-1">Selecione um intervalo</option>
+                              </select>
+                           </div>
+                        </div>
+                     </form>
+                     <form id="formDiscagem" class="row" style="min-width: 198px;">
+                        <div class="col">
+                           <div class="form-group" id="group-telefone">
+                              <label for="txtNumeroDiscagem">Telefone</label>
+                              <input type="text" id="txtNumeroDiscagem" class="form-control" value="" />
+                           </div>
+                           <button type="button" id="btnDiscar" class="btn btn-success btn-block">Discar</button>
+                           <button type="button" id="btnDesligar" class="btn btn-danger btn-block">Desligar</button>
+                        </div>
+                     </form>
 
-                     <div class="form-group">
-                        <label for="intervaloSelect">Intervalo</label>
-                        <select id="intervaloSelect" class="form-control">
-                           <option value="-1">Selecione um intervalo</option>
-                        </select>
-                     </div>
-                  </form>
-                  <form id="formDiscagem">
-                     <div class="form-group">
-                        <label for="usernameInput">Telefone</label>
-                        <input type="text" id="txtNumeroDiscagem" class="form-control" value="" />
-                     </div>
+                     <form id="formConsultar" class="row">
+                        <div class="col">
+                           <div class="form-group">
+                              <label for="txtNumeroConsultar">Consultar</label>
+                              <input type="text" id="txtNumeroConsultar" class="form-control" value="" />
+                           </div>
+                           <button type="button" id="btnConsultar" class="btn btn-success btn-block">Consultar</button>
+                           <button type="button" id="btnLiberarConsulta" class="btn btn-primary btn-block">
+                              Liberar Consulta
+                           </button>
+                        </div>
+                     </form>
 
-                     <button type="Button" id="btnDiscar" class="btn btn-success btn-block">Discar</button>
-                     <button type="Button" id="btnDesligar" class="btn btn-danger btn-block">Desligar</button>
-                  </form>
+                     <form id="formTransferencia" class="row">
+                        <div class="col">
+                           <button type="button" id="btnTransferir"
+                              class="btn btn-success btn-block">Transferir</button>
+                        </div>
+                     </form>
+                  </div>
                </div>
             </div>
          </div>
